@@ -1,63 +1,69 @@
 ﻿using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 
-namespace CTFdAutomation
+namespace DemoTest
 {
     class Program
     {
         // Configuration
-        private static readonly string CTFD_URL = "http://localhost:3000"; // Replace with your CTFd instance URL
+        private static readonly string CTFD_URL = "http://localhost:5173"; // Replace with your CTFd instance URL
         private static readonly string CHALLENGE_NAME = "Example Challenge"; // Replace with challenge name
         private static readonly string FLAG = "CTF{example_flag}"; // Replace with correct flag
-        private static readonly string PASSWORD = "123"; // Password for all users
+        private static readonly string PASSWORD = "123456Aa@"; // Password for all users
+        private static readonly int MAX_CONCURRENCY = 4; // Limit parallel instances to avoid overload
 
         static void Main(string[] args)
         {
-            IWebDriver driver = SetupDriver();
-            try
+            // Generate list of all 150 users
+            var users = new List<(int Team, int User)>();
+            for (int team = 1; team <= 50; team++)
             {
-                // Iterate over 50 teams and 3 users per team
-                for (int team = 1; team <= 1; team++)
+                for (int user = 1; user <= 3; user++)
                 {
-                    for (int user = 1; user <= 1; user++)
-                    {
-                        string username = $"Team{team}User{user}";
-                        Console.WriteLine($"Processing user: {username}");
-
-                        try
-                        {
-                            // Perform login
-                            if (!Login(driver, username, PASSWORD))
-                                continue;
-
-                            //// Start challenge
-                            //if (!StartChallenge(driver))
-                            //    continue;
-
-                            //// Submit flag
-                            //SubmitFlag(driver);
-
-                            //// Log out
-                            //driver.Navigate().GoToUrl($"{CTFD_URL}/logout");
-                            //Thread.Sleep(1000); // Wait for logout
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Error processing {username}: {ex.Message}");
-                        }
-                    }
+                    users.Add((team, user));
                 }
             }
-            finally
+
+            // Run all users in parallel with limited concurrency
+            Parallel.ForEach(users, new ParallelOptions { MaxDegreeOfParallelism = MAX_CONCURRENCY }, user =>
             {
-                driver.Quit();
-            }
+                string username = $"Team{user.Team}User{user.User}";
+                Console.WriteLine($"Processing user: {username}");
+
+                IWebDriver driver = null;
+                try
+                {
+                    driver = SetupDriver();
+                    // Perform login
+                    if (!Login(driver, username, PASSWORD))
+                        return;
+
+                    // Start challenge
+                    if (!StartChallenge(driver))
+                        return;
+
+                    // Submit flag
+                    SubmitFlag(driver);
+
+                    // Log out
+                    driver.Navigate().GoToUrl($"{CTFD_URL}/logout");
+                    Thread.Sleep(1000); // Wait for logout
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error processing {username}: {ex.Message}");
+                }
+                finally
+                {
+                    driver?.Quit(); // Ensure driver is closed
+                }
+            });
         }
 
         static IWebDriver SetupDriver()
         {
             var options = new ChromeOptions();
-            //options.AddArgument("--headless"); // Run in headless mode
+            // No --headless to show browser window
             options.AddArgument("--no-sandbox");
             options.AddArgument("--disable-dev-shm-usage");
             return new ChromeDriver(options);
@@ -73,6 +79,7 @@ namespace CTFdAutomation
                 var usernameField = driver.FindElement(By.Name("username"));
                 var passwordField = driver.FindElement(By.Name("password"));
                 var submitButton = driver.FindElement(By.XPath("//button[@type='submit']"));
+
                 usernameField.SendKeys(username);
                 passwordField.SendKeys(password);
                 submitButton.Click();
