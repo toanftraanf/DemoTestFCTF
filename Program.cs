@@ -114,6 +114,15 @@ namespace DemoTest
                 startButton.Click();
                 Thread.Sleep(1000); // Wait for button action to complete
 
+                // Click the "here" link
+                var hereLink = driver.FindElement(By.XPath("//a[contains(text(), 'here')]"));
+                string originalWindow = driver.CurrentWindowHandle;
+                hereLink.Click();
+                Thread.Sleep(1000); // Wait for link action
+
+                // Switch back to original window (since link opens in new tab)
+                driver.SwitchTo().Window(originalWindow);
+
                 // Verify flag input field is present
                 //driver.FindElement(By.Id("flag"));
                 Console.WriteLine($"Started challenge at {challengeUrl}");
